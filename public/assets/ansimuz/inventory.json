@@ -1,0 +1,102 @@
+[
+  {
+    "file": "PNG/FX/bubbles.png",
+    "width": 92,
+    "height": 40
+  },
+  {
+    "file": "PNG/FX/enemy-death.png",
+    "width": 312,
+    "height": 53
+  },
+  {
+    "file": "PNG/FX/explosion-big.png",
+    "width": 858,
+    "height": 87
+  },
+  {
+    "file": "PNG/FX/explosion-small.png",
+    "width": 484,
+    "height": 53
+  },
+  {
+    "file": "PNG/FX/explosion.png",
+    "width": 660,
+    "height": 82
+  },
+  {
+    "file": "PNG/enemies/fish-big.png",
+    "width": 216,
+    "height": 49
+  },
+  {
+    "file": "PNG/enemies/fish-dart.png",
+    "width": 156,
+    "height": 20
+  },
+  {
+    "file": "PNG/enemies/fish.png",
+    "width": 128,
+    "height": 32
+  },
+  {
+    "file": "PNG/enemies/mine-big.png",
+    "width": 69,
+    "height": 69
+  },
+  {
+    "file": "PNG/enemies/mine-small.png",
+    "width": 31,
+    "height": 31
+  },
+  {
+    "file": "PNG/enemies/mine.png",
+    "width": 45,
+    "height": 45
+  },
+  {
+    "file": "PNG/environment/background.png",
+    "width": 288,
+    "height": 256
+  },
+  {
+    "file": "PNG/environment/midground.png",
+    "width": 960,
+    "height": 512
+  },
+  {
+    "file": "PNG/environment/props.png",
+    "width": 1024,
+    "height": 496
+  },
+  {
+    "file": "PNG/environment/tiles.png",
+    "width": 480,
+    "height": 656
+  },
+  {
+    "file": "PNG/player/player-fast.png",
+    "width": 400,
+    "height": 80
+  },
+  {
+    "file": "PNG/player/player-hurt.png",
+    "width": 400,
+    "height": 80
+  },
+  {
+    "file": "PNG/player/player-idle.png",
+    "width": 480,
+    "height": 80
+  },
+  {
+    "file": "PNG/player/player-rush.png",
+    "width": 560,
+    "height": 80
+  },
+  {
+    "file": "PNG/player/player-swiming.png",
+    "width": 560,
+    "height": 80
+  }
+]
