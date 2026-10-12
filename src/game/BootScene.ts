@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { PROP_FRAMES } from '../config/map.ts';
 import { createGeneratedTextures } from '../assets/generated.ts';
+import { MODE } from '../mode.ts';
 
 const A = 'assets/ansimuz/PNG/';
 
@@ -47,7 +48,12 @@ export class BootScene extends Phaser.Scene {
 
     createGeneratedTextures(this);
 
-    this.scene.start('Dive');
-    this.scene.launch('Hud');
+    if (MODE === 'level') {
+      this.scene.start('Level');
+      this.scene.launch('LevelHud');
+    } else {
+      this.scene.start('Dive');
+      this.scene.launch('Hud');
+    }
   }
 }

@@ -3,8 +3,9 @@
   const A = {
     steer: null,
     sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
-    dive() { return window.__deepHaul.game.scene.getScene('Dive'); },
-    base() { return window.__deepHaul.game.scene.getScene('Base'); },
+    isLevel() { return window.__deepHaul.mode === 'level'; },
+    dive() { return window.__deepHaul.game.scene.getScene(this.isLevel() ? 'Level' : 'Dive'); },
+    base() { return window.__deepHaul.game.scene.getScene(this.isLevel() ? 'LevelBase' : 'Base'); },
     st() { return window.__deepHaul.state; },
     async ready() {
       for (let i = 0; i < 100 && !(window.__deepHaul && window.__deepHaul.game && window.__deepHaul.game.loop); i++) await this.sleep(100);
@@ -24,24 +25,32 @@
       }
       return false;
     },
-    /** В скрытой панели RAF почти не тикает: шагаем цикл Phaser сами, догоняя реальное время кадрами по 1/60 с. */
+    /** В скрытой панели RAF почти не тикает: шагаем цикл Phaser сами кадрами по 1/60 с.
+     *  A.speed > 1 — игровое время идёт быстрее реального (кадры те же, их просто больше). */
+    speed: 1,
     driveLoop(on) {
       const g = window.__deepHaul.game;
       if (!on) { if (this._drive) clearInterval(this._drive); this._drive = null; return; }
       if (this._drive) return;
       g.loop.raf.stop();
-      let last = performance.now();
-      g.loop.lastTime = last;
+      let wall = performance.now();
+      let game = Math.max(wall, g.loop.lastTime || 0);
+      g.loop.lastTime = game;
+      let owed = 0;
       this._drive = setInterval(() => {
         const now = performance.now();
-        const steps = Math.min(240, Math.floor((now - last) / (1000 / 60)));
-        for (let i = 0; i < steps; i++) { last += 1000 / 60; g.loop.step(last); }
+        owed += (now - wall) * this.speed;
+        wall = now;
+        const steps = Math.min(240, Math.floor(owed / (1000 / 60)));
+        for (let i = 0; i < steps; i++) { game += 1000 / 60; owed -= 1000 / 60; g.loop.step(game); }
       }, 8);
     },
     install() {
       const d = this.dive(); if (d.__autoInstalled) return; d.__autoInstalled = true;
       d.events.on('update', () => {
-        const AA = window.__auto; const s = AA.steer; if (!s) return; // всегда актуальный объект автопилота
+        const AA = window.__auto;
+        if (AA.holdPick && d.mode === 'diving') d.touchAction('pick'); // удержание E: каждый кадр, при любом ускорении
+        const s = AA.steer; if (!s) return; // всегда актуальный объект автопилота
         if (d.mode !== 'diving') { d.touchInput.x = 0; d.touchInput.y = 0; AA.steer = null; s.resolve('ended'); return; }
         const dx = s.x - d.player.x, dy = s.y - d.player.y, len = Math.hypot(dx, dy);
         if (len < s.tol || performance.now() > s.deadline) { d.touchInput.x = 0; d.touchInput.y = 0; AA.steer = null; s.resolve(len < s.tol ? 'ok' : 'timeout'); return; }
@@ -83,11 +92,12 @@
     creatures() { return this.dive().creatures.group.getChildren().map((c) => ({ kind: c.kind, x: Math.round(c.x), y: Math.round(c.y), hp: c.hp, state: c.dartState })); },
     status() {
       const d = this.dive(), s = this.st();
+      if (this.isLevel()) return { mode: d.mode, base: s.base, pos: [Math.round(d.player.x), Math.round(d.player.y)], o2: Math.round(s.dive.oxygen), active: s.dive.active, cargo: s.cargo.map((c) => c.type).join(','), weight: d.hud.weight, norm: d.hud.norm, speed: d.hud.speedPct, gold: s.save.gold, supplies: s.save.supplies, up: { ...s.save.upgrades }, knife: { ...s.save.knife }, sub: { ...s.save.substation }, lastSafe: s.save.lastSafe, warn: d.hud.warn, home: d.hud.home && { base: d.hud.home.base, sec: Math.round(d.hud.home.returnSec) }, goal: d.hud.goal, msg: d.hud.message && d.hud.message.text, completed: s.save.completed };
       return { mode: d.mode, pos: [Math.round(d.player.x), Math.round(d.player.y)], o2: Math.round(s.dive.oxygen), cargo: s.cargo.map((c) => c.type).join(','), weight: d.hud.weight, speed: d.hud.speedPct, coins: s.save.coins, parts: s.save.parts, belt: JSON.parse(JSON.stringify(s.belt)), knife: { ...s.save.knife }, last: s.last && s.last.result, msg: d.hud.message && d.hud.message.text };
     },
     repair(n) { return this.base().repair(n); },
     world(prefix) { return this.dive().loot.entities.filter((e) => e.state === 'world' && (!prefix || e.id.startsWith(prefix))).map((e) => [e.id, Math.round(e.sprite.x), Math.round(e.sprite.y), e.n]); },
-    startDive() { this.dive().startDive(); },
+    startDive() { const d = this.dive(); if (this.isLevel()) d.startSortie(); else d.startDive(); },
     buy(id) { return this.base().buy(id); },
     buySupply(k, n) { return this.base().buySupply(k, n); },
     // ---- Планы погружений для автопрогона (выполняются асинхронно, прогресс в A.progress) ----
@@ -336,6 +346,162 @@
         if (l) P.log.push(`#${l.n} ${l.result} ${l.durationS}с +${l.coins}м +${l.parts}д ${JSON.stringify(l.delivered)} ${l.notes.join('; ')}`);
       }
       P.status = s.save.capsuleDelivered ? 'capsule-delivered' : 'stopped';
+    } catch (e) { P.status = 'error: ' + (e && e.message); P.log.push(String(e && e.stack)); }
+    P.running = false;
+  };
+})();
+
+// ---------------------------------------------------------------------------------------------
+// Режим уровня: навигация по проходам и кампания до ремонта лодки (проверка логики, не читаемости).
+// ---------------------------------------------------------------------------------------------
+(() => {
+  const A = window.__auto;
+  const BOAT = { x: 880, y: 160 };
+  const SUB = { x: 1300, y: 1060 };
+  const NET_STAND = { 'net-e1': [1226, 560], 'net-n1': [688, 696], 'net-n2': [552, 1008], 'net-n3': [946, 1504], 'net-z3': [1472, 1598] };
+  const REQ = (id) => id.startsWith('e1-') ? ['net-e1']
+    : id.startsWith('d-') || id.startsWith('h2-') ? ['net-n1']
+    : id.startsWith('w2-') ? ['net-n1', 'net-n2']
+    : id.startsWith('h3-') ? ['net-n1', 'gate']
+    : id === 'engine' || id.startsWith('er-') ? ['net-n1', 'gate', 'net-n3']
+    : id.startsWith('z3-') ? ['net-n1', 'gate', 'net-z3'] : [];
+  const VALUE = { shard: 3, ore: 9, crystal: 24, crate: 10, component: 70, engine: 400, knife: 120 };
+  const WEIGHT = { shard: 1, ore: 2, crystal: 4, crate: 2, component: 3, engine: 13, knife: 0 };
+
+  /** Плыть к точке по проходам; рядом с целью — напрямую. */
+  A.navGoto = function (x, y, opts = {}) {
+    const d = this.dive(); const tol = opts.tol ?? 16; const deadline = performance.now() + (opts.timeout ?? 25000);
+    return new Promise((resolve) => {
+      const step = () => {
+        if (d.mode !== 'diving') { d.touchInput.x = 0; d.touchInput.y = 0; d.events.off('update', step); resolve('ended'); return; }
+        const dx = x - d.player.x, dy = y - d.player.y, len = Math.hypot(dx, dy);
+        if (len < tol || performance.now() > deadline) { d.touchInput.x = 0; d.touchInput.y = 0; d.events.off('update', step); resolve(len < tol ? 'ok' : 'timeout'); return; }
+        if (opts.abortIf && opts.abortIf()) { d.touchInput.x = 0; d.touchInput.y = 0; d.events.off('update', step); resolve('abort'); return; }
+        let ang = len < 56 ? Math.atan2(dy, dx) : d.routeAngle(x, y);
+        if (ang === null) ang = Math.atan2(dy, dx);
+        d.touchInput.x = Math.cos(ang); d.touchInput.y = Math.sin(ang);
+      };
+      d.events.on('update', step);
+    });
+  };
+
+  A.holdCut = async function (netId, ms = 4000) {
+    const d = this.dive(); const s = this.st(); const t0 = performance.now();
+    this.install(); this.holdPick = true;
+    try {
+      while (performance.now() - t0 < ms) {
+        if (s.save.netsCut.includes(netId) || d.mode !== 'diving') return s.save.netsCut.includes(netId) ? 'cut' : 'ended';
+        await this.sleep(30);
+      }
+      return 'timeout';
+    } finally { this.holdPick = false; }
+  };
+
+  A.levelBuy = function (order) {
+    const s = this.st(); const out = [];
+    const bought = { oxygen: 0, lantern: 0, fins: 0, tow: 0 };
+    for (const id of order) {
+      bought[id] += 1;
+      if (s.save.upgrades[id] >= bought[id]) continue;
+      const before = s.save.gold; this.base().buy(id);
+      if (s.save.gold === before) break;
+      out.push(`${id}${s.save.upgrades[id]}`);
+    }
+    if (s.save.knife.owned && s.save.knife.durability < 2 && s.save.supplies > 0) { const b = s.save.supplies; this.base().repair(2 - s.save.knife.durability); if (s.save.supplies !== b) out.push('repair'); }
+    return out;
+  };
+
+  /** Одна вылазка: собрать выгодное с учётом сетей, кислорода и веса; вернуться к ближайшей базе. */
+  A.levelSortie = async function (opts = {}) {
+    const d = this.dive(); const s = this.st(); const P = this.progress;
+    const norm = () => d.hud.norm;
+    const W = () => s.cargo.reduce((a, c) => a + c.weight, 0);
+    const homeOk = (extra = 0) => { const h = d.hud.home; const need = (h ? h.returnSec * 1.35 : 0) + 4 + extra; return s.dive.oxygen > need; };
+    const lowO2 = () => { const h = d.hud.home; return !!h && s.dive.active && s.dive.oxygen < h.returnSec * 1.25 + 3; };
+    const tripCost = (x, y, cuts) => { const v = Math.max(30, d.hud.speedPct / 100 * (140 + 25 * s.save.upgrades.fins)); return (Math.hypot(x - d.player.x, y - d.player.y) * 1.3 / v) * 2 + cuts * 1.6 + 3; };
+    // с двигателем — к лодке (подстанция по пути завершит вылазку)
+    if (s.cargo.some((c) => c.type === 'engine')) {
+      if (opts.dieWithEngine === 'leg2' && !A._died2) { A._died2 = true; await this.navGoto(688, 800, { timeout: 30000 }); P.log.push('стою с двигателем до конца кислорода (сценарий)'); while (d.mode === 'diving') await this.sleep(200); return 'died'; }
+      const r = await this.navGoto(BOAT.x, BOAT.y, { timeout: 60000 }); return r;
+    }
+    // компоненты из связки — сначала к подстанции
+    if (!s.save.substation.restored && s.cargo.some((c) => c.type === 'component') && homeOk(tripCost(SUB.x, SUB.y, 0))) {
+      const r0 = await this.navGoto(SUB.x, SUB.y, { timeout: 30000, abortIf: lowO2 });
+      P.log.push(`к подстанции с компонентом из связки: ${r0}, установлено ${s.save.substation.installed.length}`);
+      if (d.mode !== 'diving') return 'docked';
+    }
+    for (let guard = 0; guard < 25 && d.mode === 'diving'; guard++) {
+      const px = d.player.x, py = d.player.y;
+      const cands = d.loot.entities.filter((e) => {
+        if (e.state !== 'world') return false;
+        const t = e.type; const w = WEIGHT[t] ?? 0;
+        if (t === 'knife' && s.save.knife.owned) return false;
+        if (t === 'component' && s.save.substation.restored) return false;
+        if (t === 'engine' && (!s.save.substation.restored || w > 2 * norm() || W() > 0)) return false;
+        if (t !== 'engine' && w > 0 && W() + w > norm()) return false;
+        const req = REQ(e.id).filter((n) => !s.save.netsCut.includes(n));
+        if (req.includes('gate')) return false;
+        if (req.length && (!s.save.knife.owned || s.save.knife.durability < req.length)) return false;
+        if (opts.optionalFirst === false && req.some((n) => n === 'net-e1' || n === 'net-z3')) return false;
+        return true;
+      });
+      const score = (e) => { let v = VALUE[e.type] ?? 1; if (opts.optionalFirst && REQ(e.id).some((n) => (n === 'net-e1' || n === 'net-z3') && !s.save.netsCut.includes(n))) v *= 6; return v / (Math.hypot(e.sprite.x - px, e.sprite.y - py) + 80); };
+      cands.sort((a, b) => score(b) - score(a));
+      const cuts = (c) => REQ(c.id).filter((n) => n !== 'gate' && !s.save.netsCut.includes(n)).length;
+      // лучшая цель, до которой хватает кислорода туда и обратно (а не только самая ценная)
+      const e = cands.find((c) => homeOk(tripCost(c.sprite.x, c.sprite.y, cuts(c))));
+      if (!e) break;
+      for (const n of REQ(e.id)) {
+        if (s.save.netsCut.includes(n) || n === 'gate') continue;
+        const [sx, sy] = NET_STAND[n];
+        const r1 = await this.navGoto(sx, sy, { tol: 14, timeout: 20000, abortIf: lowO2 }); if (r1 === 'abort') break; if (r1 !== 'ok') return r1;
+        const c = await this.holdCut(n); P.log.push(`сеть ${n}: ${c}, нож ${s.save.knife.durability}`);
+        if (c !== 'cut') { if (d.mode !== 'diving') return 'net-fail'; break; }
+      }
+      if (REQ(e.id).some((n) => n !== 'gate' && !s.save.netsCut.includes(n))) break;
+      const r2 = await this.navGoto(e.sprite.x, e.sprite.y, { tol: 20, timeout: 25000, abortIf: lowO2 });
+      if (r2 === 'abort') break;
+      if (r2 !== 'ok') { if (d.mode !== 'diving') return r2; continue; }
+      const before = s.cargo.length + (s.save.knife.owned ? 1 : 0);
+      d.touchAction('pick'); await this.sleep(120);
+      if (s.cargo.length + (s.save.knife.owned ? 1 : 0) === before) { P.log.push(`не взял ${e.id}`); break; }
+      if (e.type === 'engine') {
+        P.log.push('двигатель взят');
+        if (opts.dieWithEngine === 'leg1' && !A._died1) { A._died1 = true; await this.navGoto(1280, 1500, { timeout: 20000 }); P.log.push('стою с двигателем до конца кислорода (сценарий)'); while (d.mode === 'diving') await this.sleep(200); return 'died'; }
+        break;
+      }
+      // компоненты — к подстанции
+      if (e.type === 'component' && !s.save.substation.restored && homeOk(tripCost(SUB.x, SUB.y, 0))) {
+        const r3 = await this.navGoto(SUB.x, SUB.y, { timeout: 30000, abortIf: lowO2 });
+        P.log.push(`к подстанции с компонентом: ${r3}, установлено ${s.save.substation.installed.length}`);
+        if (d.mode !== 'diving') return 'docked';
+      }
+    }
+    // домой: к ближайшей работающей базе
+    const target = s.save.substation.restored && d.hud.home && d.hud.home.base === 'sub' ? SUB : BOAT;
+    return this.navGoto(target.x, target.y, { timeout: 60000 });
+  };
+
+  A.levelCampaign = async function (opts = {}) {
+    const s = this.st(); const d = this.dive(); const P = this.progress;
+    const order = opts.order || ['oxygen', 'tow', 'lantern', 'fins', 'oxygen', 'tow', 'fins', 'oxygen', 'tow', 'lantern', 'fins', 'lantern'];
+    P.running = true; P.status = 'level'; P.log = []; P.sorties = 0; A._died1 = A._died2 = false;
+    try {
+      while (!s.save.completed && P.sorties < (opts.max || 60)) {
+        for (let i = 0; i < 80 && d.mode === 'docking'; i++) await this.sleep(100);
+        if (d.mode === 'base') {
+          for (let i = 0; i < 40 && !(window.__deepHaul.game.scene.isActive('LevelBase') && this.base().root); i++) await this.sleep(100);
+          const b = this.levelBuy(order); if (b.length) P.log.push(`база ${s.base}: ${b.join(' ')}`);
+          this.base().dive(); for (let i = 0; i < 30 && d.mode !== 'diving'; i++) await this.sleep(100);
+        }
+        if (d.mode !== 'diving') { await this.sleep(300); continue; }
+        P.sorties++;
+        const r = await this.levelSortie(opts);
+        for (let i = 0; i < 80 && d.mode !== 'base' && !s.save.completed; i++) await this.sleep(100);
+        const l = s.save.log[s.save.log.length - 1];
+        if (l) P.log.push(`#${l.n} ${l.from}→${l.to} ${l.result} ${l.durationS}с +${l.gold}з +${l.supplies}п ${JSON.stringify(l.delivered)} мин.O2 ${l.minO2} ${l.notes.join('; ')} (${r})`);
+      }
+      P.status = s.save.completed ? 'completed' : 'stopped';
     } catch (e) { P.status = 'error: ' + (e && e.message); P.log.push(String(e && e.stack)); }
     P.running = false;
   };

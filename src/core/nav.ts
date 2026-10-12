@@ -31,16 +31,18 @@ export function buildPassable(g: WallGrid, blocked: readonly Rect[]): Uint8Array
   return pass;
 }
 
-export function buildNav(g: WallGrid, dock: Rect, blocked: readonly Rect[]): NavGrid {
+export function buildNav(g: WallGrid, docks: Rect | readonly Rect[], blocked: readonly Rect[]): NavGrid {
   const { cols, rows } = g;
   const passable = buildPassable(g, blocked);
   const dist = new Int32Array(cols * rows).fill(-1);
   const queue: number[] = [];
-  const c0 = Math.floor(dock.x / TILE), c1 = Math.ceil((dock.x + dock.w) / TILE);
-  const r0 = Math.floor(dock.y / TILE), r1 = Math.ceil((dock.y + dock.h) / TILE);
-  for (let cy = r0; cy < r1; cy++) for (let cx = c0; cx < c1; cx++) {
-    const i = cy * cols + cx;
-    if (cx >= 0 && cy >= 0 && cx < cols && cy < rows && passable[i]) { dist[i] = 0; queue.push(i); }
+  for (const dock of Array.isArray(docks) ? docks : [docks as Rect]) {
+    const c0 = Math.floor(dock.x / TILE), c1 = Math.ceil((dock.x + dock.w) / TILE);
+    const r0 = Math.floor(dock.y / TILE), r1 = Math.ceil((dock.y + dock.h) / TILE);
+    for (let cy = r0; cy < r1; cy++) for (let cx = c0; cx < c1; cx++) {
+      const i = cy * cols + cx;
+      if (cx >= 0 && cy >= 0 && cx < cols && cy < rows && passable[i] && dist[i] !== 0) { dist[i] = 0; queue.push(i); }
+    }
   }
   let head = 0;
   while (head < queue.length) {

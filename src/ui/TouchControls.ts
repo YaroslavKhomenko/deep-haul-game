@@ -1,8 +1,15 @@
 // Сенсорное управление: виртуальный стик слева, кнопки действий справа. Показывается только на тач-устройствах.
 import Phaser from 'phaser';
-import type { DiveScene } from '../game/DiveScene.ts';
 import { openPause } from './pause.ts';
 import { label } from './widgets.ts';
+
+/** Сцена мира, принимающая сенсорный ввод (стик и кнопки действий). */
+export interface TouchTarget {
+  touchInput: { x: number; y: number };
+  touchAction(action: string): void;
+}
+
+const DEFAULT_ACTIONS: [string, string][] = [['pick', 'Взять'], ['drop', 'Сбросить'], ['o2', 'O2'], ['fire', 'Гарпун'], ['pause', 'II']];
 
 export class TouchControls {
   enabled: boolean;
@@ -12,17 +19,16 @@ export class TouchControls {
   private origin = new Phaser.Math.Vector2();
   private buttons: { bg: Phaser.GameObjects.Arc; txt: Phaser.GameObjects.Text; action: string }[] = [];
   private width = 0;
-  private dive: DiveScene;
+  private dive: TouchTarget;
 
-  constructor(scene: Phaser.Scene, dive: DiveScene) {
+  constructor(scene: Phaser.Scene, dive: TouchTarget, actions: [string, string][] = DEFAULT_ACTIONS) {
     this.dive = dive;
     this.enabled = typeof window !== 'undefined' && (navigator.maxTouchPoints > 0 || 'ontouchstart' in window);
     this.stickBase = scene.add.circle(0, 0, 48, 0x0f2338, 0.5).setStrokeStyle(2, 0x3ec6c0, 0.7).setDepth(7).setVisible(false);
     this.stickKnob = scene.add.circle(0, 0, 22, 0x3ec6c0, 0.8).setDepth(8).setVisible(false);
     if (!this.enabled) return;
     scene.input.addPointer(2);
-    const defs: [string, string][] = [['pick', 'Взять'], ['drop', 'Сбросить'], ['o2', 'O2'], ['fire', 'Гарпун'], ['pause', 'II']];
-    for (const [action, text] of defs) {
+    for (const [action, text] of actions) {
       const bg = scene.add.circle(0, 0, 30, 0x0f2338, 0.75).setStrokeStyle(2, 0x3ec6c0, 0.9).setDepth(7).setInteractive({ useHandCursor: true });
       const txt = label(scene, 0, 0, text, 12, '#e6f3f8', { fontStyle: 'bold' }).setOrigin(0.5).setDepth(8);
       bg.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
@@ -68,11 +74,11 @@ export class TouchControls {
   layout(width: number, height: number): void {
     this.width = width;
     if (!this.enabled) return;
-    const positions: [number, number][] = [
-      [width - 60, height - 70], [width - 130, height - 110], [width - 60, height - 150], [width - 130, height - 190], [width - 40, 100],
-    ];
+    const positions: Record<string, [number, number]> = {
+      pick: [width - 60, height - 70], drop: [width - 130, height - 110], o2: [width - 60, height - 150], fire: [width - 130, height - 190], pause: [width - 40, 100],
+    };
     this.buttons.forEach((b, i) => {
-      const [x, y] = positions[i];
+      const [x, y] = positions[b.action] ?? [width - 60, height - 70 - 70 * i];
       b.bg.setPosition(x, y);
       b.txt.setPosition(x, y);
     });

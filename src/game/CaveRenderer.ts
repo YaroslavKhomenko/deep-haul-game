@@ -1,6 +1,6 @@
 // Пещера: тайлы Ansimuz по соседям из клеточной сетки, коллизии Arcade.
 import Phaser from 'phaser';
-import { MAP } from '../config/map.ts';
+import { MAP, type Rect } from '../config/map.ts';
 import { buildWallGrid, isWallAt, pickTile, TILE, type WallGrid } from '../core/grid.ts';
 
 export interface Cave {
@@ -10,12 +10,23 @@ export interface Cave {
   isWaterRect(x: number, y: number, w: number, h: number): boolean;
 }
 
-export function buildCave(scene: Phaser.Scene): Cave {
-  const grid = buildWallGrid(MAP.water, MAP.width, MAP.height);
+export interface CaveMap {
+  water: Rect[];
+  width: number;
+  height: number;
+}
+
+/** sky — область над водой без тайлов (воздух над бухтой); для физики и света она остаётся «стеной». */
+export function buildCave(scene: Phaser.Scene, cave: CaveMap = MAP, sky?: Rect): Cave {
+  const grid = buildWallGrid(cave.water, cave.width, cave.height);
+  const inSky = (cx: number, cy: number) =>
+    !!sky && cx * TILE >= sky.x && (cx + 1) * TILE <= sky.x + sky.w && cy * TILE >= sky.y && (cy + 1) * TILE <= sky.y + sky.h;
+  // Для выбора тайлов небо считается открытым пространством: берег у поверхности получает верхние тайлы
+  const tileGrid = sky ? { ...grid, wall: grid.wall.map((w, i) => (inSky(i % grid.cols, Math.floor(i / grid.cols)) ? 0 : w)) } : grid;
   const data: number[][] = [];
   for (let cy = 0; cy < grid.rows; cy++) {
     const row: number[] = [];
-    for (let cx = 0; cx < grid.cols; cx++) row.push(pickTile(grid, cx, cy));
+    for (let cx = 0; cx < grid.cols; cx++) row.push(inSky(cx, cy) ? -1 : pickTile(tileGrid, cx, cy));
     data.push(row);
   }
   const map = scene.make.tilemap({ data, tileWidth: TILE, tileHeight: TILE });

@@ -27,10 +27,12 @@ export class LootManager {
   byId = new Map<string, LootEntity>();
   spawnsById = new Map<string, LootSpawn>();
   private scene: Phaser.Scene;
+  private spawns: readonly LootSpawn[];
 
-  constructor(scene: Phaser.Scene) {
+  constructor(scene: Phaser.Scene, spawns: readonly LootSpawn[] = MAP.loot) {
     this.scene = scene;
-    for (const s of MAP.loot) this.spawnsById.set(s.id, s);
+    this.spawns = spawns;
+    for (const s of spawns) this.spawnsById.set(s.id, s);
   }
 
   /** Пересобрать мир по сохранению: доставленное и израсходованное отсутствует, перемещённое — на новых местах. */
@@ -38,7 +40,7 @@ export class LootManager {
     for (const e of this.entities) e.sprite.destroy();
     this.entities = [];
     this.byId.clear();
-    for (const item of worldItems(MAP.loot, lootSave)) this.spawn(item);
+    for (const item of worldItems(this.spawns, lootSave)) this.spawn(item);
   }
 
   private spawn(item: WorldItem): LootEntity {

@@ -1,7 +1,7 @@
 // Преграды: сети по id (разрезанные не возвращаются) и кораллы (опасность среды). Видны только в свете фонаря.
 import Phaser from 'phaser';
 import { KNIFE } from '../config/balance.ts';
-import { MAP, type NetSpawn, type Rect } from '../config/map.ts';
+import { MAP, type CoralSpawn, type NetSpawn, type Rect } from '../config/map.ts';
 
 export interface Net {
   id: string;
@@ -27,13 +27,13 @@ export class BarrierManager {
   }
 
   /** Сети — только ещё не разрезанные по сохранению; кораллы — всегда. */
-  spawnAll(netsCut: readonly string[]): void {
+  spawnAll(netsCut: readonly string[], nets: readonly NetSpawn[] = MAP.nets, corals: readonly CoralSpawn[] = MAP.corals): void {
     for (const n of this.nets) n.sprite.destroy();
     this.nets = [];
     this.netGroup.clear(true, true);
     this.coralGroup.clear(true, true);
-    for (const s of MAP.nets) if (!netsCut.includes(s.id)) this.spawnNet(s);
-    for (const c of MAP.corals) {
+    for (const s of nets) if (!netsCut.includes(s.id)) this.spawnNet(s);
+    for (const c of corals) {
       const zone = this.scene.add.image(c.x + c.w / 2, c.y + c.h / 2, 'props', 'coral').setDepth(12).setVisible(false);
       zone.setFlipX(!!c.flip);
       this.scene.physics.add.existing(zone, true);
@@ -90,6 +90,21 @@ export class BarrierManager {
       return true;
     }
     return false;
+  }
+
+  /** Открыть сеть без ножа (например, решётку при включении подстанции). true — если сеть была закрыта. */
+  openNet(id: string): boolean {
+    const net = this.nets.find((n) => n.id === id && !n.cut);
+    if (!net) return false;
+    net.cut = true;
+    const { x, y } = net.sprite;
+    this.netGroup.remove(net.sprite, true, true);
+    for (let i = 0; i < 4; i++) {
+      const b = this.scene.add.sprite(x + (Math.random() - 0.5) * net.rect.w * 0.8, y + (Math.random() - 0.5) * 12, 'bubbles', 0).setDepth(23);
+      b.play('bubbles-rise');
+      this.scene.tweens.add({ targets: b, y: b.y - 34, alpha: 0, duration: 800, onComplete: () => b.destroy() });
+    }
+    return true;
   }
 
   updateVisibility(px: number, py: number, radius: number, los: (x: number, y: number) => boolean): void {

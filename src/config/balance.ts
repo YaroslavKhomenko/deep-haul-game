@@ -1,7 +1,7 @@
 // Весь баланс в одном месте. (ТЗ) — числа документа v0.3, (Т2) — правки по первому тесту, (ДП) — допущения сборки.
 
-export type ItemType = 'shard' | 'ore' | 'crystal' | 'parts' | 'capsule' | 'o2' | 'harpoons' | 'knife';
-export type ItemKind = 'valuable' | 'material' | 'goal' | 'supply' | 'equipment';
+export type ItemType = 'shard' | 'ore' | 'crystal' | 'parts' | 'capsule' | 'o2' | 'harpoons' | 'knife' | 'crate' | 'component' | 'engine';
+export type ItemKind = 'valuable' | 'material' | 'goal' | 'supply' | 'equipment' | 'crate' | 'unique';
 export type UpgradeId = 'fins' | 'tank' | 'haul' | 'lantern' | 'tools' | 'weapon' | 'suit';
 export type SupplyKind = 'o2' | 'harpoons';
 
@@ -34,6 +34,10 @@ export const ITEMS: Record<ItemType, ItemDef> = {
   o2: { name: 'Баллончик O2', kind: 'supply', weight: 0, price: 0, supply: 'o2', amount: 1 }, // ДП
   harpoons: { name: 'Гарпуны ×2', kind: 'supply', weight: 0, price: 0, supply: 'harpoons', amount: 2 }, // ДП
   knife: { name: 'Нож', kind: 'equipment', weight: 0, price: 0 }, // Т2: находка, снаряжение
+  // Режим уровня (прототип одного района); на карте песочницы этих предметов нет.
+  crate: { name: 'Ящик снабжения', kind: 'crate', weight: 2, price: 0 },
+  component: { name: 'Компонент подстанции', kind: 'unique', weight: 3, price: 0 },
+  engine: { name: 'Двигатель лодки', kind: 'unique', weight: 13, price: 0 },
 };
 
 export const DIVER = {

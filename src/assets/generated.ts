@@ -126,6 +126,74 @@ export function createGeneratedTextures(scene: Phaser.Scene): void {
     px(g, PAL.ice, 8, 3, 8, 1);
     px(g, PAL.steelDark, 16, 4, 2, 2);
   });
+  // ---- Режим уровня: ящик снабжения, компонент подстанции, двигатель, лодка, подстанция ----
+  // Ящик снабжения: стальной короб с бирюзовым крестом (знак припасов)
+  gen(scene, 'item-crate', 16, 14, (g) => {
+    px(g, PAL.black, 0, 1, 16, 13);
+    px(g, PAL.steelDark, 1, 2, 14, 11);
+    px(g, PAL.steel, 2, 3, 12, 2);
+    px(g, PAL.teal, 7, 5, 2, 7);
+    px(g, PAL.teal, 4, 7, 8, 2);
+    px(g, PAL.ice, 2, 3, 1, 1);
+  });
+  // Компонент подстанции: блок с изолятором и янтарной молнией
+  gen(scene, 'item-component', 14, 16, (g) => {
+    px(g, PAL.black, 2, 3, 10, 13);
+    px(g, PAL.steelDark, 3, 4, 8, 11);
+    px(g, PAL.ice, 5, 0, 4, 4);
+    px(g, PAL.steel, 6, 1, 2, 2);
+    px(g, PAL.amber, 7, 6, 2, 2);
+    px(g, PAL.amber, 6, 8, 2, 2);
+    px(g, PAL.amber, 7, 10, 2, 3);
+  });
+  // Двигатель лодки: тяжёлый корпус с винтом
+  gen(scene, 'item-engine', 36, 24, (g) => {
+    px(g, PAL.black, 2, 5, 26, 17);
+    px(g, PAL.steelDark, 3, 6, 24, 15);
+    px(g, PAL.steel, 5, 8, 20, 3);
+    px(g, PAL.navy, 5, 13, 20, 6);
+    px(g, PAL.amberDark, 9, 2, 12, 4);
+    px(g, PAL.amber, 10, 3, 10, 1);
+    px(g, PAL.steelDark, 28, 11, 3, 4);
+    px(g, PAL.ice, 31, 5, 3, 6);
+    px(g, PAL.ice, 31, 15, 3, 6);
+    px(g, PAL.steel, 32, 11, 2, 4);
+  });
+  // Лодка: корпус, рубка, лампа, лебёдка
+  gen(scene, 'boat', 132, 52, (g) => {
+    px(g, PAL.black, 6, 30, 120, 14);
+    px(g, PAL.navy, 8, 31, 116, 6);
+    px(g, PAL.steelDark, 12, 37, 108, 6);
+    px(g, PAL.amberDark, 8, 30, 116, 1);
+    px(g, PAL.steelDark, 40, 12, 40, 18);
+    px(g, PAL.steel, 42, 14, 36, 4);
+    px(g, PAL.ice, 46, 20, 8, 6);
+    px(g, PAL.ice, 58, 20, 8, 6);
+    px(g, PAL.amber, 70, 20, 6, 6);
+    px(g, PAL.steelDark, 88, 6, 3, 24);
+    px(g, PAL.steelDark, 88, 6, 22, 3);
+    px(g, PAL.amber, 104, 9, 4, 4);
+    px(g, PAL.steel, 108, 9, 1, 30);
+    px(g, PAL.amber, 26, 24, 6, 6);
+    px(g, PAL.cream, 28, 26, 2, 2);
+  });
+  // Подстанция: бетонный блок с трубами; выкл — красная лампа, вкл — бирюзовая
+  const substation = (key: string, on: boolean) => gen(scene, key, 60, 60, (g) => {
+    px(g, PAL.black, 4, 12, 52, 48);
+    px(g, on ? PAL.tealDark : PAL.steelDark, 6, 14, 48, 44);
+    px(g, on ? PAL.teal : PAL.steel, 8, 16, 44, 3);
+    px(g, PAL.navy, 12, 24, 14, 22);
+    px(g, PAL.navy, 34, 24, 14, 22);
+    px(g, on ? PAL.ice : PAL.steelDark, 15, 28, 8, 3);
+    px(g, on ? PAL.ice : PAL.steelDark, 37, 28, 8, 3);
+    px(g, PAL.steelDark, 26, 0, 8, 12);
+    px(g, on ? PAL.teal : PAL.red, 27, 2, 6, 6);
+    px(g, on ? PAL.ice : PAL.amberDark, 29, 3, 2, 2);
+    px(g, PAL.steelDark, 0, 40, 6, 6);
+    px(g, PAL.steelDark, 54, 32, 6, 6);
+  });
+  substation('substation-off', false);
+  substation('substation-on', true);
   // Гарпун-снаряд
   gen(scene, 'harpoon', 16, 4, (g) => {
     px(g, PAL.steelDark, 0, 1, 12, 2);
@@ -176,6 +244,10 @@ export function createGeneratedTextures(scene: Phaser.Scene): void {
   radialCanvas(scene, 'light-inv', 256, '', '', [
     [0, 'rgba(0,0,0,0)'], [0.5, 'rgba(0,0,0,0)'], [1, 'rgba(0,0,0,1)'],
   ]);
+  // Режим уровня: шире яркая часть света, край короче
+  radialCanvas(scene, 'light-inv-soft', 256, '', '', [
+    [0, 'rgba(0,0,0,0)'], [0.72, 'rgba(0,0,0,0)'], [1, 'rgba(0,0,0,1)'],
+  ]);
   radialCanvas(scene, 'glow-teal', 64, '', '', [
     [0, 'rgba(120,240,230,0.9)'], [1, 'rgba(120,240,230,0)'],
   ]);
@@ -194,6 +266,9 @@ export function createGeneratedTextures(scene: Phaser.Scene): void {
 }
 
 export const LOOT_TEXTURE: Record<string, string> = {
+  crate: 'item-crate',
+  component: 'item-component',
+  engine: 'item-engine',
   knife: 'item-knife',
   shard: 'item-shard',
   ore: 'item-ore',
