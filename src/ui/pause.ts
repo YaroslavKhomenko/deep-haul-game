@@ -17,7 +17,7 @@ export interface PauseConfig {
   autoPause(): boolean;
   abort(game: Phaser.Game): void;
   resetSave(): void;
-  text: { divingNote: string; reloadNote: string; abortLabel: string; controls: string; newGameText: string };
+  text: { divingNote: string; reloadNote: string; abortLabel: string; controls: string; newGameText: string; newGameLabel: string };
 }
 
 export function sandboxPauseConfig(): PauseConfig {
@@ -36,6 +36,7 @@ export function sandboxPauseConfig(): PauseConfig {
       abortLabel: 'Аварийный возврат (груз теряется)',
       controls: 'Управление: WASD/стрелки — плыть, E — взять (удерживать у сети — резать), Q — сбросить, R — баллончик O2, F/Пробел — гарпун, Esc — пауза.',
       newGameText: 'Сбросить весь прогресс: монеты, детали, улучшения, припасы, капсулу и статистику?',
+      newGameLabel: 'Новая игра',
     },
   };
 }
@@ -71,7 +72,7 @@ export function openPause(game: Phaser.Game): void {
     <div class="row">
       <button id="btn-resume" class="primary">Продолжить</button>
       ${diving ? `<button id="btn-abort" class="danger">${cfg.text.abortLabel}</button>` : ''}
-      <button id="btn-newgame">Новая игра</button>
+      <button id="btn-newgame">${cfg.text.newGameLabel}</button>
     </div>
     <p class="note">${cfg.text.controls}</p>`;
   overlay().appendChild(el);
@@ -99,7 +100,7 @@ export function openConfirmNewGame(game: Phaser.Game): void {
   el.className = 'modal';
   el.id = 'confirm-modal';
   el.innerHTML = `
-    <h2>Новая игра</h2>
+    <h2>${cfg.text.newGameLabel}</h2>
     <p>${cfg.text.newGameText}</p>
     <div class="row">
       <button id="btn-confirm-yes" class="danger">Да, сбросить</button>

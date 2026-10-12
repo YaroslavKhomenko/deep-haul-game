@@ -438,6 +438,7 @@
         if (t === 'knife' && s.save.knife.owned) return false;
         if (t === 'component' && s.save.substation.restored) return false;
         if (t === 'engine' && (!s.save.substation.restored || w > 2 * norm() || W() > 0)) return false;
+        if (t === 'engine' && opts.optionalFirst && !['net-e1', 'net-z3'].every((n) => s.save.netsCut.includes(n))) return false; // сценарий: сначала все необязательные сети
         if (t !== 'engine' && w > 0 && W() + w > norm()) return false;
         const req = REQ(e.id).filter((n) => !s.save.netsCut.includes(n));
         if (req.includes('gate')) return false;
